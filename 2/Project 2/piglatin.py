@@ -1,3 +1,16 @@
+'''
+    This library converts a piece of text into piglatin. This library includes:
+        Basic Piglatin conversion
+        Punctuation handling
+        Uppercase handling
+        Sentence Handling
+
+    To use application, replace INPUT with input and OUTPUT with output:
+        python piglatin.py --input $INPUT --output $OUTPUT
+
+'''
+
+
 import argparse
 
 # Vowels list
@@ -22,21 +35,29 @@ higher_punctuation = [
     ")"
 ]
 
-# Argument Parsing
-parser = argparse.ArgumentParser()
-parser.add_argument('--input', dest="input")
-parser.add_argument('--output', dest="output")
-args = parser.parse_args()
+def parse_arguments():
+    # Argument Parsing
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--input', dest="input")
+    parser.add_argument('--output', dest="output")
+    args = parser.parse_args()
+    return args
 
-# Load input file as reader
-infile = open(str(args.input), "r")
-data = infile.readlines()
+def load_in_file(args):
+    # Load input file as reader
+    infile = open(str(args.input), "r")
+    return infile
 
-# Load output file as writer
-outfile = open(str(args.output), 'w')
+def load_out_file(args):
+    # Load output file as writer
+    outfile = open(str(args.output), 'w')
+    return outfile
 
-# Init output sentence
-output_sentence = ""
+def write_out_file(output_sentence, outfile):
+    # write to file and close
+    outfile.write(output_sentence)
+    outfile.flush()
+    outfile.close()
 
 def check_vowel(input_letter):
     '''
@@ -58,37 +79,48 @@ def check_punctutation(input_letter):
 
 def check_high_punct(input_word, front):
     for p in higher_punctuation:
-        if input_word[0] == p and front:
+        if input_word[0] == p:
             return True
-        elif input_word[len(input_word) - 1] == p and not front:
+        elif input_word[len(input_word) - 1] == p:
             return True
 
     return False
-for line in data:
-    line = line[:-1]
+
+def parse_data(data):
+	# Remove trailing endline
+    data = data[:-1]
     # Split sentence into words
-    input_sentence = line.split(" ", -1)
+    input_sentence = data.split(" ", -1)
+    return input_sentence
 
+
+
+def pig_latin(input_sentence):
+    output_sentence = ""
     for input_word_orig in input_sentence:
-        if len(input_word_orig) == 0:
-            output_sentence = output_sentence + "\n\n"
-            continue
-
-        input_word = input_word_orig.lower()
         # Set suffix and prefix
         ending = ""
         suffix = "ay"
         prefix = ""
         beginning = ""
 
-        # Check for vowel in every letter for current word
-        i = 0
+        if len(input_word_orig) == 0:
+            output_sentence += "\n\n"
+            continue
+
+        input_word = input_word_orig.lower() # Ignore uppercase for now
+
+
         if check_high_punct(input_word, True):
+            # Check for higher punctuation in front
             input_word = input_word[1:]
 
         if check_high_punct(input_word, False):
+            # Check for higher punctuation in back
             input_word = input_word[:-1]
 
+        # Check for vowel in every letter for current word
+        i = 0
         for input_letter in input_word:
             if not check_vowel(input_letter):
                 i = i + 1
@@ -121,15 +153,30 @@ for line in data:
             suffix = input_word[:i] + suffix
 
         if input_word_orig[0].isupper():
+            # Check for uppercase word
             if len(prefix) > 0:
                 prefix = prefix[0].upper() + prefix[1:]
             elif len(suffix) > 0:
                 suffix = suffix[0].upper() + suffix[1:]
         # append current new prefix and suffix to the output sentence
-        output_sentence = output_sentence + beginning + prefix + suffix + ending + " "
+        output_sentence += beginning + prefix + suffix + ending + " "
+    return output_sentence
 
 
-# write to file and close
-outfile.write(output_sentence)
-outfile.flush()
-outfile.close()
+
+
+
+def main():
+    args = parse_arguments()
+    infile = load_in_file(args)
+    outfile = load_out_file(args)
+    data = infile.readlines()
+    input_sentence = ""
+    output_sentence = ""
+    for line in data:
+        output_sentence += pig_latin(parse_data(line))
+    print(output_sentence)
+    write_out_file(output_sentence, outfile)
+
+if __name__ == "__main__":
+    main()
