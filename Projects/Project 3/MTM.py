@@ -1,17 +1,18 @@
 '''
-Add	: 000000	rs	rt	rd	sa	100000 	| sa = 00000
-Sub	: 000000	rs	rt	rd	sa	100010	| sa = 00000
-SLL	: 000000	rs	rt	rd	sa	000000		| ra = 00000
-SRL	: 000000	rs	rt	rd	sa	000010		| ra = 00000
-SLT	: 000000	rs	rt	rd	sa	101010	| sa = 00000
+MIPS REFERENCE
+	Add	: 000000	rs	rt	rd	sa	100000 	| sa = 00000
+	Sub	: 000000	rs	rt	rd	sa	100010	| sa = 00000
+	SLL	: 000000	rs	rt	rd	sa	000000		| ra = 00000
+	SRL	: 000000	rs	rt	rd	sa	000010		| ra = 00000
+	SLT	: 000000	rs	rt	rd	sa	101010	| sa = 00000
 
-Addi: 001000	rs	rt	imm
-BEQ	: 000100	rs	rt	offset
-BNE	: 000101	rs	rt	offset
-LW	: 100011	rs	rt	offset
-SW	: 101011	rs	rt	offset
+	Addi: 001000	rs	rt	imm
+	BEQ	: 000100	rs	rt	offset
+	BNE	: 000101	rs	rt	offset
+	LW	: 100011	rs	rt	offset
+	SW	: 101011	rs	rt	offset
 '''
-
+import argparse
 
 # Set constants
 R_LIST = [
@@ -62,6 +63,7 @@ REGISTER_LISTS = [
 
 # Start function defs
 def parse_instruction(input_string):
+	failedParse = ["!!! invalid input !!!"]
 	'''
 		OpCode
 	'''
@@ -70,7 +72,7 @@ def parse_instruction(input_string):
 	
 	# Check if input is RList or not
 	if not (instructionToReg[0] in R_LIST or instructionToReg[0] in I_LIST):
-		return ""
+		return failedParse
 	
 	template = parse_instruc_to_binary(instructionToReg[0])
 	if instructionToReg[0] in I_LIST:
@@ -84,15 +86,15 @@ def parse_instruction(input_string):
 	
 	# Check for regList being the right size
 	if len(regList) != 3 and len(regList) != 2:
-		return ""
+		return failedParse
 		
 	if instructionType == "rtype":
 		if not parse_rtype(instructionToReg[0], template, regList):
-			return ""
+			return failedParse
 	else:
 		if not parse_itype(instructionToReg[0], template, regList):
-			return ""
-	print(template)
+			return failedParse
+	return template
 	
 def parse_instruc_to_binary(stringin):
 	# stringin = instruction input
@@ -170,9 +172,13 @@ def parse_itype(opcode, template, registers):
 	rt = ""
 	rs = ""
 	offset = ""
-	if opcode == "addi" or opcode == "beq" or opcode == "bne":
+	if opcode == "addi":
 		rt = registers[0]
 		rs = registers[1]
+		offset = registers[2]
+	elif opcode == "beq" or opcode == "bne":
+		rt = registers[1]
+		rs = registers[0]
 		offset = registers[2]
 	elif opcode == "lw" or opcode == "sw":
 		rt = registers[0]
@@ -221,9 +227,42 @@ def int_to_binary(size, number):
 	formatting = '{:0%ib}' % size
 	return formatting.format(number)
 
+def parse_args():
+	parser = argparse.ArgumentParser(description='Input: input file\nOutput: output file')
+	parser.add_argument("--input", dest='inputF', required=True)
+	parser.add_argument("--output", dest='outputF', required=True)
+	return parser.parse_args()
+
+def read_file(filename):
+	openf = open(filename, 'r')
+	lines = openf.readlines()
+	return lines
+
+def save_to_file(filename, output):
+	openf = open(filename, 'w')
+	openf.write(output)
+	openf.close()
+
 def main():
-	instring = "sub  $31,$2,$8"
-	parse_instruction(instring)
+	args = parse_args()
+	infile = args.inputF
+	
+	lines = read_file(infile)
+	output = ""
+	for line in lines:
+		valid = True
+		line = line.replace("\n", "")
+		
+		for section in parse_instruction(line):
+			output += section
+			if section == "!!! invalid input !!!":
+				valid = False
+				break
+		if valid == False:
+			break
+		output += "\n"
+	
+	save_to_file(args.outputF, output)
 
 if __name__ == "__main__":
 	main()
