@@ -171,7 +171,7 @@ def parse_itype(opcode, template, registers):
 	# registers: list of registers 
 	rt = ""
 	rs = ""
-	offset = ""
+	offset = 0
 	if opcode == "addi":
 		rt = registers[0]
 		rs = registers[1]
@@ -180,11 +180,23 @@ def parse_itype(opcode, template, registers):
 		rt = registers[1]
 		rs = registers[0]
 		offset = registers[2]
+		number = 0
+		if offset.replace("-", "").isnumeric():
+			number = int(offset)
+		else:
+			return False
+		offset = number // 4
 	elif opcode == "lw" or opcode == "sw":
 		rt = registers[0]
 		rsoffset = registers[1].split("(")
 		offset = rsoffset[0]
 		rs = rsoffset[1].replace(")", "")
+		number = 0
+		if offset.replace("-", "").isnumeric():
+			number = int(offset)
+		else:
+			return False
+		offset = number
 	else:
 		return False
 	
@@ -208,13 +220,7 @@ def parse_itype(opcode, template, registers):
 		i += 1
 	
 	# Parse offset
-	number = 0
-	if offset.replace("-", "").isnumeric():
-		number = int(offset)
-	else:
-		return False
-	
-	binary = int_to_binary(16, number)
+	binary = int_to_binary(16, offset)
 	if len(binary) != 16:
 		return False
 	template[3] = binary

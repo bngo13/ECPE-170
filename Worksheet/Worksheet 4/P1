@@ -1,0 +1,15 @@
+add $t0, $t0, $t0
+add $t0, $t0, $t0 #4i
+
+add $t0, $s0, $t0 # get addr of 4i
+lw $t1, 0($t0) # arr[i]
+lw $t2, 4($t0) # arr[i+1]
+
+beq $t2, $t1, firstIfEnd 
+firstIfStart
+	sw $t2, 0($t0) # arr[i] = arr[i+1]
+firstIfEnd
+sw $t2, -4($t0) # arr[i-1] = arr[i+1]
+
+
+
