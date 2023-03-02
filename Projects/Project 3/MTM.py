@@ -192,6 +192,11 @@ def parse_itype(opcode, template, registers):
 		rt = registers[0]
 		rs = registers[1]
 		offset = registers[2]
+		if offset.replace("-", "").isnumeric():
+			number = int(offset)
+		else:
+			return False
+		offset = number
 	elif opcode == "beq" or opcode == "bne":
 		rt = registers[1]
 		rs = registers[0]
@@ -297,6 +302,16 @@ def main():
 		# Default line as valid
 		valid = True
 		line = line.replace("\n", "")
+			
+		commentIndex = line.find('#');
+		if commentIndex != -1:
+			line = line.split('#', 1)[0]
+		
+		line = line.strip()
+		
+		if len(line)  == 0:
+			output += "\n"
+			continue
 		
 		for section in parse_instruction(line):
 			output += section
