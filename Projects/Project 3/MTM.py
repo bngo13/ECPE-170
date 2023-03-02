@@ -108,16 +108,20 @@ def parse_rtype(opcode, template, registers):
 	# opcode: string of opcode
 	# template: list type
 	# registers: list of registers 
+	
+	# init variables for conversions
 	rs = ""
 	rt = ""
 	rd = ""
 	sa = ""
 	if opcode == "add" or opcode == "sub" or opcode == "slt":
+		# Preset registers for conversions
 		rs = registers[1]
 		rt = registers[2]
 		rd = registers[0]
 		sa = "0"
 	elif opcode == "sll" or opcode == "srl":
+		# Preset registers for conversions
 		rs = "$zero"
 		rt = registers[1]
 		rd = registers[0]
@@ -129,16 +133,16 @@ def parse_rtype(opcode, template, registers):
 	# Cover rs, rt, rd
 	for register in [rs, rt, rd]:
 		number = 0
-		if register == "":
-			i += 1
-			continue
 		
+		# Test if in register
 		if not ("$" in register):
 			
 			print(register)
 			return False
+		# Remove dollar sign
 		register = register.replace("$", "")
 		
+		# Convert to register number 
 		if register in REGISTER_LISTS:
 			number = REGISTER_LISTS.index(register)
 		elif register.isnumeric():
@@ -148,17 +152,25 @@ def parse_rtype(opcode, template, registers):
 		
 		if number > 31:
 			return False
+		# Conver to binary
 		template[i] = int_to_binary(5, number)
 		
 		i += 1
 	
-	# Cover sa
+	''' Cover for SA '''
+	# If not number then not good
 	if not sa.isnumeric():
 		return False
+	
+	# Convert and test for number boundaries
 	number = int(sa)
 	if number >= 32 or number < 0:
 		return False
+	
+	# Convert int to binary
 	binary = int_to_binary(5, number)
+	
+	# Test for length of string
 	if len(binary) != 5:
 		return False
 	template[4] = binary
@@ -169,9 +181,13 @@ def parse_itype(opcode, template, registers):
 	# opcode: string of opcode
 	# template: list type
 	# registers: list of registers 
+	
+	# init variables for conversions
 	rt = ""
 	rs = ""
 	offset = 0
+	
+	# Test for opcodes
 	if opcode == "addi":
 		rt = registers[0]
 		rs = registers[1]
@@ -181,6 +197,8 @@ def parse_itype(opcode, template, registers):
 		rs = registers[0]
 		offset = registers[2]
 		number = 0
+		
+		# Divide offset by 4
 		if offset.replace("-", "").isnumeric():
 			number = int(offset)
 		else:
@@ -188,10 +206,14 @@ def parse_itype(opcode, template, registers):
 		offset = number // 4
 	elif opcode == "lw" or opcode == "sw":
 		rt = registers[0]
+		
+		# Pull offset from second section
 		rsoffset = registers[1].split("(")
 		offset = rsoffset[0]
 		rs = rsoffset[1].replace(")", "")
 		number = 0
+		
+		# Convert offset to number
 		if offset.replace("-", "").isnumeric():
 			number = int(offset)
 		else:
@@ -203,9 +225,15 @@ def parse_itype(opcode, template, registers):
 	i = 1
 	for register in [rs, rt]:
 		number = 0
+		
+		# Make sure $ is in the register name
 		if not ("$" in register):
 			return False
+		
+		# Remove $
 		register = register.replace("$", "")
+		
+		# Get register number
 		if register in REGISTER_LISTS:
 			number = REGISTER_LISTS.index(register)
 		elif register.isnumeric():
@@ -213,14 +241,20 @@ def parse_itype(opcode, template, registers):
 		else:
 			return False
 
-		if number > 31:
+		# Check boundaries
+		if number > 31 or number < 0:
 			return False
+		
+		# Convert to binary
 		template[i] = int_to_binary(5, number)
 		
 		i += 1
 	
-	# Parse offset
+	''' Parse offset '''
+	# Convert to binary
 	binary = int_to_binary(16, offset)
+	
+	# Make sure length is correct
 	if len(binary) != 16:
 		return False
 	template[3] = binary
@@ -228,15 +262,18 @@ def parse_itype(opcode, template, registers):
 	return True
 
 def int_to_binary(size, number):
+	# If negative, bit shift to negative numbers
 	if number < 0:
 		number = (1 << size) + number
+	
+	# Create formatting
 	formatting = '{:0%ib}' % size
 	return formatting.format(number)
 
 def parse_args():
 	parser = argparse.ArgumentParser(description='Input: input file\nOutput: output file')
 	parser.add_argument("--input", dest='inputF', required=True)
-	parser.add_argument("--output", dest='outputF', required=True)
+	#parser.add_argument("--output", dest='outputF', required=True)
 	return parser.parse_args()
 
 def read_file(filename):
@@ -251,11 +288,13 @@ def save_to_file(filename, output):
 
 def main():
 	args = parse_args()
+	args.outputF = "out_code.txt"
 	infile = args.inputF
 	
 	lines = read_file(infile)
 	output = ""
 	for line in lines:
+		# Default line as valid
 		valid = True
 		line = line.replace("\n", "")
 		
