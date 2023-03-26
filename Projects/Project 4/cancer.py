@@ -30,6 +30,10 @@ class InstructionMemory:
 		instruct_data = instruction_file.read()
 		
 		self.instruct_list = instruct_data.split("\n")
+		
+		if len(self.instruct_list) > 100:
+			self.instruct_list = []
+		
 		instruction_file.close()
 	
 	def get_instruct(self, progcount):
@@ -223,21 +227,25 @@ def main():
 		# Update Program Counter
 		counter.set_sll(immediate << 2)
 		
+		# Set ALU Inputs
 		alu.input1 = rsData
 		if control_list[1] == 0:
 			alu.input2 = rtData
 		else:
 			alu.input2 = immediate
 		
+		# Set ALU Control
 		alu.set_funct(instruction[-6:])
 		alu.set_alucontrol([control_list[7], control_list[8]])
 		
 		aluResult = alu.execute()
 		
+		# Process Data Memory Portion
 		datamem.set_address(aluResult)
 		memoryData = datamem.read_data()
 		datamem.write_data(rtData)
 		
+		# Choose MemtoReg
 		registerWriteData = 0
 		
 		if control_list[2] == 1:
@@ -246,8 +254,11 @@ def main():
 			registerWriteData = aluResult
 		
 		registers.write_data(registerWriteData)
+		
+		# Go to the next count
 		counter.next_count()
 	
+	# Save to respective files
 	saveControl(controlPrint)
 	saveRegisters(registerPrint)
 
