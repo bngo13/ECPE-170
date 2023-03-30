@@ -2,6 +2,7 @@
 import argparse
 parser = argparse.ArgumentParser(description='Input: input file, Memory;')
 parser.add_argument("inF")
+parser.add_argument("memF")
 args = parser.parse_args()
 
 class ProgramCounter:
@@ -161,6 +162,39 @@ class DataMemory:
 		self.addresses = {}
 		self.memwrite = 0
 		self.memread = 0
+		
+		self.load_memory_file()
+	
+	def load_memory_file(self):
+		# Load "memory" file into actual memory
+		memoryF = open(args.memF, 'r')
+		memory = memoryF.read()
+		memory = memory.split("\n")
+		i = 1
+		
+		# Update our memory of data
+		for address in memory:
+			try:
+				isBool = False
+				
+				# Check for negatives
+				if "-" in address:
+					isBool = True
+					address = address.replace("-","")
+				
+				data = int(address)
+				
+				# Put the negative back
+				if isBool:
+					data = data * -1
+				
+			except:
+				data = 0
+			
+			self.addresses.update({i:data})
+			i += 1
+		
+		memoryF.close()
 	
 	def set_memwrite(self, memwrite):
 		self.memwrite = memwrite
@@ -179,8 +213,34 @@ class DataMemory:
 			return potentialData
 	
 	def write_data(self, data):
+		# Update our copy of addresses
 		if self.memwrite == 1:
+			
+			print(data)
 			self.addresses.update({self.current_addr: data})
+			self.addresses = dict(sorted(self.addresses.items()))
+			
+			# Write to memory file
+			output = ""
+			
+			memFile = open(args.memF, 'w')
+			
+			lineNum = 1
+			
+			for k, v in self.addresses.items():
+				while lineNum < k:
+					output += "0\n"
+					lineNum += 1
+				output += str(v) + "\n"
+				lineNum += 1
+			
+			output = output[:-1]
+			
+			memFile.write(output)
+			
+		#memFile = open(args.memF, 'w')
+		
+		
 
 # Data Parts
 counter = ProgramCounter()
@@ -315,4 +375,3 @@ def saveRegisters(register):
 
 if __name__ == "__main__":
 	main()
-	print(datamem.addresses)
