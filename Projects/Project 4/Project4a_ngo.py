@@ -32,7 +32,7 @@ class InstructionMemory:
 		parser = argparse.ArgumentParser(description='Input: input file')
 		parser.add_argument("inF")
 		
-		args = self.parse_args()
+		args = parser.parse_args()
 		
 		
 		# Read Argument
@@ -60,7 +60,11 @@ class Control:
 			"000000": [1,0,0,1,0,0,0,1,0,0],
 			
 			# Other Types
-			"001000": [0,1,0,1,0,0,0,0,0,0]
+			"001000": [0,1,0,1,0,0,0,0,0,0], # addi
+			"000100": [0,0,0,0,0,0,1,0,1,1], # beq
+			"000101": [0,0,0,0,0,0,1,1,1,0], # bne
+			"100011": [], # lw
+			"101011": [], # sw
 		}
 		self.control_list = [0,0,0,0,0,0,0,0,0,0]
 
@@ -108,7 +112,7 @@ class Registers:
 		return self.registers.get(self.readreg2)
 	
 	def write_data(self, data):
-		if self.registers.get(self.writereg) != None:
+		if self.registers.get(self.writereg) != None and self.regwrite == 1:
 			self.registers.update({self.writereg: data})
 
 class ALU:
@@ -118,9 +122,6 @@ class ALU:
 		self.functfields = {
 			"100000": "add",
 			"100010": "sub",
-			"100100": "and",
-			"100101": "or",
-			"101010": "slt"
 		}
 		
 		# Funct
@@ -145,26 +146,21 @@ class ALU:
 				return self.input1 + self.input2
 			elif funct == "sub":
 				return self.input1 - self.input2
-			elif funct == "and":
-				print("PERFORM AND")
-			elif funct == "or":
-				print("PERFORM OR")
-			elif funct == "slt":
-				print("PERFORM SLT")
 			else:
 				print("NOT FOUND")
 		elif self.alucontrol == [0, 1]:
-			print("DO BEQ")
-		else:
-			print("DO BNE")
+			if self.input1 - self.input2 == 0:
+				counter.set_pcsrc(1)
+		elif self.alucontrol == [1, 1]:
+			if self.input1 - self.input2 != 0:
+				counter.set_pcsrc(1)
 
 class DataMemory:
-	# Unused for now
 	def __init__(self):
 		self.current_addr = 0
 		self.addresses = {}
-		self.memwrite = False
-		self.memread = False
+		self.memwrite = 0
+		self.memread = 0
 	
 	def set_memwrite(self, memwrite):
 		self.memwrite = memwrite
@@ -176,11 +172,11 @@ class DataMemory:
 		self.current_addr = address
 	
 	def read_data(self):
-		if self.memread == True:
+		if self.memread == 1:
 			return self.addresses.get(self.current_addr)
 	
 	def write_data(self, data):
-		if self.memwrite == True:
+		if self.memwrite == 1:
 			self.addresses.update({self.current_addr: data})
 
 # Data Parts
@@ -203,7 +199,6 @@ def main():
 			instruction = instructMem.get_instruct(count)
 		except:
 			break
-		
 		if instruction == "":
 			break
 		# Parse Instruction
@@ -234,7 +229,7 @@ def main():
 			registers.set_writereg(rd)
 		
 		# Sign Extend immediate
-		immediate = int(immediate, 2)
+		immediate = twos_comp(int(immediate,2), len(immediate))
 		
 		# Update Program Counter
 		counter.set_sll(immediate << 2)
@@ -269,10 +264,20 @@ def main():
 		
 		# Go to the next count
 		counter.next_count()
+		reset_devices()
 	
 	# Save to respective files
 	saveControl(controlPrint)
 	saveRegisters(registerPrint)
+
+def twos_comp(val, bits):
+	if (val & (1 << (bits - 1))) != 0:
+		val = val - (1 << bits)
+	return val
+
+def reset_devices():
+	control.__init__()
+	alu.__init__()
 
 def prettyPrintControl(control_list):
 	output = ""
