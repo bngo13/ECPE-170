@@ -1,0 +1,4 @@
+1.
+	rs: $t1
+	rt: $t0
+	immediate: -100

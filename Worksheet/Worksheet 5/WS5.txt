@@ -1,0 +1,12 @@
+1.
+	rs: $t1
+	rt: $t0
+	immediate: -100
+2.
+	read register 1
+3.
+	read register 2 and the write register
+4.
+	yes
+5.
+	Write data
