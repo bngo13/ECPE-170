@@ -1,3 +1,9 @@
+# Parse Argument
+import argparse
+parser = argparse.ArgumentParser(description='Input: input file, Memory;')
+parser.add_argument("inF")
+args = parser.parse_args()
+
 class ProgramCounter:
 	def __init__(self):
 		self.count = 0
@@ -26,15 +32,6 @@ class ProgramCounter:
 
 class InstructionMemory:
 	def __init__(self):
-		# Parse Argument
-		import argparse
-		
-		parser = argparse.ArgumentParser(description='Input: input file')
-		parser.add_argument("inF")
-		
-		args = parser.parse_args()
-		
-		
 		# Read Argument
 		instruction_file = open(args.inF, "r")
 		
@@ -63,8 +60,8 @@ class Control:
 			"001000": [0,1,0,1,0,0,0,0,0,0], # addi
 			"000100": [0,0,0,0,0,0,1,0,1,1], # beq
 			"000101": [0,0,0,0,0,0,1,1,1,0], # bne
-			"100011": [], # lw
-			"101011": [], # sw
+			"100011": [0,1,1,1,1,0,0,0,0,0], # lw
+			"101011": [0,1,0,0,0,1,0,0,0,0], # sw
 		}
 		self.control_list = [0,0,0,0,0,0,0,0,0,0]
 
@@ -87,7 +84,7 @@ class Registers:
 			"00111": 0
 		}
 		
-		self.regwrite = False
+		self.regwrite = 0
 		
 		self.readreg1 = ""
 		self.readreg2 = ""
@@ -143,6 +140,7 @@ class ALU:
 		elif self.alucontrol == [1, 0]:
 			funct = self.functfields.get(self.funct)
 			if funct == "add":
+				
 				return self.input1 + self.input2
 			elif funct == "sub":
 				return self.input1 - self.input2
@@ -151,9 +149,11 @@ class ALU:
 		elif self.alucontrol == [0, 1]:
 			if self.input1 - self.input2 == 0:
 				counter.set_pcsrc(1)
+			return self.input1 + self.input2
 		elif self.alucontrol == [1, 1]:
 			if self.input1 - self.input2 != 0:
 				counter.set_pcsrc(1)
+			return self.input1 + self.input2
 
 class DataMemory:
 	def __init__(self):
@@ -173,7 +173,10 @@ class DataMemory:
 	
 	def read_data(self):
 		if self.memread == 1:
-			return self.addresses.get(self.current_addr)
+			potentialData = self.addresses.get(self.current_addr)
+			if potentialData == None:
+				return 0
+			return potentialData
 	
 	def write_data(self, data):
 		if self.memwrite == 1:
@@ -190,7 +193,7 @@ datamem = DataMemory()
 def main():
 	registerPrint = ""
 	controlPrint = ""
-	while True :
+	while True:
 		# Next Line
 		count = counter.get_count()
 		
@@ -220,7 +223,6 @@ def main():
 		rsData = registers.get_readreg1()
 		registers.set_readreg2(rt)
 		rtData = registers.get_readreg2()
-		
 		registers.set_regwrite(control_list[3])
 		
 		if control_list[0] == 0:
@@ -248,6 +250,9 @@ def main():
 		aluResult = alu.execute()
 		
 		# Process Data Memory Portion
+		datamem.set_memwrite(control_list[5])
+		datamem.set_memread(control_list[4])
+		
 		datamem.set_address(aluResult)
 		memoryData = datamem.read_data()
 		datamem.write_data(rtData)
@@ -265,6 +270,10 @@ def main():
 		# Go to the next count
 		counter.next_count()
 		reset_devices()
+
+	if (counter.get_count() // 4) > len(instructMem.instruct_list):
+		controlPrint = "!!! Segmentation Fault !!!\r\n"
+		registerPrint = "!!! Segmentation Fault !!!\r\n"
 	
 	# Save to respective files
 	saveControl(controlPrint)
@@ -306,3 +315,4 @@ def saveRegisters(register):
 
 if __name__ == "__main__":
 	main()
+	print(datamem.addresses)
