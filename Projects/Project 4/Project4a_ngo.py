@@ -253,6 +253,29 @@ datamem = DataMemory()
 def main():
 	registerPrint = ""
 	controlPrint = ""
+	
+	# Get control signals
+	while True:
+		count = counter.get_count()
+		try:
+			instruction = instructMem.get_instruct(count)
+		except:
+			counter.count = 0
+			break
+		if instruction == "":
+			counter.count = 0
+			break
+		# Parse Instruction
+		opcode = instruction[0:6]
+		
+		# Set Control
+		
+		control.set_control(opcode)
+		control_list = control.get_control()
+		controlPrint += prettyPrintControl(control_list) + "\n"
+		counter.next_count()
+	
+	# Start actually processing
 	while True:
 		# Next Line
 		count = counter.get_count()
@@ -275,7 +298,6 @@ def main():
 		
 		control.set_control(opcode)
 		control_list = control.get_control()
-		controlPrint += prettyPrintControl(control_list) + "\n"
 		
 		# Get Registers
 		
