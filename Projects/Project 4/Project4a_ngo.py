@@ -53,16 +53,17 @@ class Control:
 	def __init__(self):
 		self.control_dict = {
 			# Order: RegDst, ALUSrc, MemtoReg, RegWrite, MemRead, MemWrite, branch, ALUOp1 ALUOp2, Zero bit
+			# 2 = Don't care
 			
 			# R Type
 			"000000": [1,0,0,1,0,0,0,1,0,0],
 			
 			# Other Types
 			"001000": [0,1,0,1,0,0,0,0,0,0], # addi
-			"000100": [0,0,0,0,0,0,1,0,1,1], # beq
-			"000101": [0,0,0,0,0,0,1,1,1,0], # bne
+			"000100": [2,0,2,0,0,0,1,0,1,1], # beq
+			"000101": [2,0,2,0,0,0,1,1,1,0], # bne
 			"100011": [0,1,1,1,1,0,0,0,0,0], # lw
-			"101011": [0,1,0,0,0,1,0,0,0,0], # sw
+			"101011": [2,1,2,0,0,1,0,0,0,0], # sw
 		}
 		self.control_list = [0,0,0,0,0,0,0,0,0,0]
 
@@ -128,6 +129,8 @@ class ALU:
 		# Inputs
 		self.input1 = 0
 		self.input2 = 0
+		
+		self.zero = 0
 	
 	def set_alucontrol(self, alucontrol):
 		self.alucontrol = alucontrol
@@ -136,6 +139,10 @@ class ALU:
 		self.funct = funct
 
 	def execute(self):
+		if self.input1 - self.input2 == 0:
+			self.zero = 1
+		else:
+			self.zero = 0
 		if self.alucontrol == [0, 0]:
 			return self.input1 + self.input2
 		elif self.alucontrol == [1, 0]:
@@ -150,11 +157,14 @@ class ALU:
 		elif self.alucontrol == [0, 1]:
 			if self.input1 - self.input2 == 0:
 				counter.set_pcsrc(1)
+			
 			return self.input1 + self.input2
 		elif self.alucontrol == [1, 1]:
 			if self.input1 - self.input2 != 0:
 				counter.set_pcsrc(1)
 			return self.input1 + self.input2
+			
+		
 
 class DataMemory:
 	def __init__(self):
@@ -215,8 +225,6 @@ class DataMemory:
 	def write_data(self, data):
 		# Update our copy of addresses
 		if self.memwrite == 1:
-			
-			print(data)
 			self.addresses.update({self.current_addr: data})
 			self.addresses = dict(sorted(self.addresses.items()))
 			
@@ -253,27 +261,7 @@ datamem = DataMemory()
 def main():
 	registerPrint = ""
 	controlPrint = ""
-	
-	# Get control signals
-	while True:
-		count = counter.get_count()
-		try:
-			instruction = instructMem.get_instruct(count)
-		except:
-			counter.count = 0
-			break
-		if instruction == "":
-			counter.count = 0
-			break
-		# Parse Instruction
-		opcode = instruction[0:6]
-		
-		# Set Control
-		
-		control.set_control(opcode)
-		control_list = control.get_control()
-		controlPrint += prettyPrintControl(control_list) + "\n"
-		counter.next_count()
+	controlLists = []
 	
 	# Start actually processing
 	while True:
@@ -298,7 +286,10 @@ def main():
 		
 		control.set_control(opcode)
 		control_list = control.get_control()
-		
+		control_list_temp = control.get_control().copy()
+		for controls in range(len(control_list)):
+			if control_list[controls] == 2:
+				control_list[controls] = 0
 		# Get Registers
 		
 		registers.set_readreg1(rs)
@@ -348,16 +339,24 @@ def main():
 			registerWriteData = aluResult
 		
 		registers.write_data(registerWriteData)
+		control_list_temp[-1] = alu.zero
+		
+		controlLists.append(control_list_temp)
 		
 		# Go to the next count
 		counter.next_count()
 		reset_devices()
-
+	
+	for i in controlLists:
+		controlPrint += prettyPrintControl(i) + "\n"
+	
 	if (counter.get_count() // 4) > len(instructMem.instruct_list):
 		controlPrint = "!!! Segmentation Fault !!!\r\n"
 		registerPrint = "!!! Segmentation Fault !!!\r\n"
 	
 	# Save to respective files
+	controlPrint = controlPrint[:-1]
+	registerPrint = registerPrint[:-1]
 	saveControl(controlPrint)
 	saveRegisters(registerPrint)
 
@@ -373,6 +372,9 @@ def reset_devices():
 def prettyPrintControl(control_list):
 	output = ""
 	for c in control_list:
+		if c == 2:
+			output += 'X'
+			continue
 		output += str(c)
 	return output
 
