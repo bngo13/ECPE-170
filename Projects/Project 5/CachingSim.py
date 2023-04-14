@@ -55,53 +55,46 @@ class DirectCache:
 			})
 
 class SetAssociativeCache:
-	def __init__(self, cache_size=0, block_size=0, way=0):
-		# Cache List line: [Valid, Set ID, cache_dict: {dict of blocks in cache way}]
-		self.cache_list = {}
-		for i in range(0, way):
-			cache_dict = {}
-			for j in range(0, cache_size // way):
-			# cache_line: [Tag Bit, blocks: {dict of blocks}]
-				blockDict = {}
-				for k in range(0, block_size):
-					blockDict.update({
-						k: [0,0,0,0]
-					})
-				cache_dict.update({
-					j: [
-						0,
-						blockDict
-					]
-				})
-			self.cache_list.update({
-				i: [
-					0,
-					0,
-					cache_dict
-				]
-			})
-	def find_address(self, way_bit, tag_bit):
-		# Find set 
-		found_set = self.cache_list.get(way_bit)
-		if found_set == None:
-			return False
-		
-		# Check Valid Bit
-		if found_set[0] == 0:
-			return False
-		
-		# Check for tag bit
-		for address in found_set.values():
-			if address == tag_bit:
+	def __init__(self, set_count=0, block_count=0, n_way=1):
+		self.DC_list = []
+		# Create N-Way DC 
+		for i in range(0, n_way):
+			DC = {}
+			for j in range(0, set_count):
+				DC_block = {}
+				for k in range(0, block_count):
+					DC_block.update({k: [0,0,0,0]})
+				DC.update({j: [
+					0, # Tag Bit
+					0, # Valid
+					0, # Count
+					DC_block
+				]})
+			self.DC_list.append(DC)
+			
+	def find_address(self, tag_bit, set_number):
+		for dc in self.DC_list:
+			if dc.get(set_number) != None and dc.get(set_number)[0] == tag_bit and dc.get(set_number)[1] != 0:
 				return True
 		return False
-	
-	def write_address(self, way_bit, tag_bit):
-		# Find set
-		found_set = self.cache_list.get(way_bit)
-		found_set[0] = 0
+
+	def write_address(self, tag_bit, set_number):
+		# Increment Counter
+		for dc in self.DC_list:
+			for block in dc.values():
+				block[2] += 1
 		
-		# Create new entry
+		smallerValue = 0
+		smallerIndex = self.DC_list[0].get(set_number)
+		for dc in self.DC_list:
+			if dc.get(set_number)[2] > smallerValue:
+				smallerValue = dc.get(set_number)[2]
+				smallerIndex = dc.get(set_number)
+		
+		smallerIndex[0] = tag_bit
+		smallerIndex[1] = 1
+		smallerIndex[2] = 0
+				
 def parse_args():
 	parser = argparse.ArgumentParser(prog='PyCaching', description='Caching Emulation')
 	
@@ -123,21 +116,62 @@ def parseDC(memBin, block_size, cache_size):
 	#print("Byte Offset: ", byteOffset)
 	
 	# Word Offset
-	
-	wordOffset = memBin[block_size:]
-	memBin = memBin[:block_size]
+	if block_size == 0:
+		wordOffset = 0
+		memBin = memBin[:-1]
+	else:
+		wordOffset = memBin[block_size:]
+		memBin = memBin[:block_size]
 	#print("Word Offset: ", wordOffset)
 	
 	# Index Bits
-	indexBits = memBin[cache_size:]
-	memBin = memBin[:cache_size]
+	if indexBits == 0:
+		indexBits = 0
+		memBin = memBin[:-1]
+	else:
+		indexBits = memBin[cache_size:]
+		memBin = memBin[:cache_size]
 	#print("Index Size: ", indexBits)
 	
 	# Rest of bits
-	tagBits = memBin
+	if memBin == '':
+		tagBits = 0
+	else:
+		tagBits = memBin
+	
 	#print("Tag: ", memBin)
 	
 	return (tagBits, indexBits, wordOffset, byteOffset)
+
+def parseSAC(memBin, set_size, block_size):
+	# print("---")
+	# print(memBin)
+	# print(set_size)
+	# print(block_size)
+	# print("---")
+	
+	#print(memBin)
+	# Byte Offset
+	byteOffset = memBin[-2:]
+	memBin = memBin[:-2]
+	
+	# Block Offset
+	if block_size == 0:
+		blockOffset = "0"
+	else:
+		blockOffset = memBin[block_size:]
+		memBin = memBin[:block_size]
+	
+	# Set Offset
+	if set_size == 0:
+		setOffset = "0"
+	else:
+		setOffset = memBin[set_size:]
+		memBin = memBin[:set_size]
+	
+	# Tag Bits
+	tagBits = memBin
+	return (tagBits, setOffset, blockOffset, byteOffset)
 
 def main():
 	args = parse_args()
@@ -147,8 +181,15 @@ def main():
 	
 	block_size = args.blockSize
 	cache_size = args.cacheSize
-	block_bits = int(math.log2(block_size // 4))
-	cache_bits = int(math.log2(cache_size))
+	
+	if block_size < 2:
+		block_bits = 0
+	elif block_size >= 2 and block_size < 4:
+		block_bits = 1
+	else:
+		block_bits = math.ceil(math.log2(block_size // 4))
+		print(block_bits)
+	cache_bits = math.ceil(math.log2(cache_size))
 	print(f"Cache Lines: {cache_bits}\nBits per block: {block_bits}")
 	
 	# Initialize Caching Types
@@ -175,7 +216,6 @@ def main():
 			#print(int(memBin, 2))
 			#continue
 			#print(memBin)
-			
 			dcResult = parseDC(memBin, block_bits * -1, cache_bits * -1)
 			tagBits = int(dcResult[0], 2)
 			indexBits = int(dcResult[1], 2)
@@ -185,6 +225,7 @@ def main():
 			# Check for alignment
 			if int(memBin, 2) % 4 != 0:
 				hitOrMiss += f"{address}|{dcResult[0]}|{dcResult[1]}|Unaligned\n"
+				total += 1
 				continue
 			#print(json.dumps(DC.cache_list, sort_keys=True, indent=4))
 			
@@ -203,17 +244,26 @@ def main():
 			print("set_ways argument required")
 			return
 		way_size = args.setAssociativeWays
-		way_bits = int(math.log2(way_size))
+		way_bits = math.ceil(math.log2(way_size))
 		SAC.__init__(cache_size, block_size, way_size)
-		
-		# Check for alignment? TODO
-		
+
 		# Start
-		#print(SAC.cache_list)
+		for address in memoryAddress:
+			memBin = hexToBin(address)
+			splitSAC = parseSAC(memBin, cache_bits * -1, block_bits * -1)
+			#print(splitSAC)
+			tagBits = int(splitSAC[0], 2)
+			setNumber = int(splitSAC[1], 2)
+			wordIndex = int(splitSAC[2], 2)
+			byteoffset = int(splitSAC[3], 2)
+			
+			print(SAC.find_address(tagBits, setNumber))
+			print(splitSAC)
+			if not SAC.find_address(tagBits, setNumber):
+				SAC.write_address(tagBits, setNumber)
 		
-		SAC.find_address()
+		#print(json.dumps(SAC.DC_list, sort_keys=True, indent=4))
 		
-		print(json.dumps(SAC.cache_list, sort_keys=True, indent=4))
 		hit = 1
 		total = 1
 	write_result(f"{hitOrMiss}\nHit Rate: {(hit / total) * 100}")
