@@ -110,36 +110,41 @@ DC = DirectCache()
 SAC = SetAssociativeCache()
 
 def parseDC(memBin, block_size, cache_size):
+	print("---")
+	print(memBin)
+	print(cache_size)
+	print(block_size)
+	print("---")
 	# Byte Offset
 	byteOffset = memBin[-2:]
 	memBin = memBin[:-2]
-	#print("Byte Offset: ", byteOffset)
+	print("Byte Offset: ", byteOffset)
 	
 	# Word Offset
 	if block_size == 0:
-		wordOffset = 0
+		wordOffset = '0'
 		memBin = memBin[:-1]
 	else:
 		wordOffset = memBin[block_size:]
 		memBin = memBin[:block_size]
-	#print("Word Offset: ", wordOffset)
+	print("Word Offset: ", wordOffset)
 	
 	# Index Bits
-	if indexBits == 0:
-		indexBits = 0
+	if cache_size == 0:
+		indexBits = '0'
 		memBin = memBin[:-1]
 	else:
 		indexBits = memBin[cache_size:]
 		memBin = memBin[:cache_size]
-	#print("Index Size: ", indexBits)
+	print("Index Size: ", indexBits)
 	
 	# Rest of bits
 	if memBin == '':
-		tagBits = 0
+		tagBits = '0'
 	else:
 		tagBits = memBin
 	
-	#print("Tag: ", memBin)
+	print("Tag: ", memBin)
 	
 	return (tagBits, indexBits, wordOffset, byteOffset)
 
@@ -182,13 +187,10 @@ def main():
 	block_size = args.blockSize
 	cache_size = args.cacheSize
 	
-	if block_size < 2:
+	if block_size // 4 < 1:
 		block_bits = 0
-	elif block_size >= 2 and block_size < 4:
-		block_bits = 1
 	else:
 		block_bits = math.ceil(math.log2(block_size // 4))
-		print(block_bits)
 	cache_bits = math.ceil(math.log2(cache_size))
 	print(f"Cache Lines: {cache_bits}\nBits per block: {block_bits}")
 	
@@ -199,7 +201,10 @@ def main():
 	memFile = open(args.memFile, 'r')
 	memFileContents = memFile.read().strip()
 	memoryAddress = memFileContents.split("\n")
-	#print(memoryAddress)
+	
+	# # Convert mem address to hex if int
+	# for i in range(0, len(memoryAddress)):
+	# 	memoryAddress[i] = hex(int(memoryAddress[i]))
 	
 	# Calculating Hit Rates
 	total = 0
@@ -212,6 +217,7 @@ def main():
 			print("Additional Parameter: set_ways was set for direct cache mapping")
 			return
 		for address in memoryAddress:
+			
 			memBin = hexToBin(address)
 			#print(int(memBin, 2))
 			#continue
@@ -222,20 +228,23 @@ def main():
 			wordOffset = int(dcResult[2], 2)
 			byteOffset = int(dcResult[3], 2)
 			
+			output = ""
+			
 			# Check for alignment
-			if int(memBin, 2) % 4 != 0:
-				hitOrMiss += f"{address}|{dcResult[0]}|{dcResult[1]}|Unaligned\n"
-				total += 1
-				continue
 			#print(json.dumps(DC.cache_list, sort_keys=True, indent=4))
 			
 			if DC.inCache(indexBits, wordOffset, tagBits) == False:
-				hitOrMiss += f"{address}|{dcResult[0]}|{dcResult[1]}|Miss\n"
+				output = "Miss"
 				DC.writeCache(indexBits, block_size, tagBits)
 			else:
-				hitOrMiss += f"{address}|{dcResult[0]}|{dcResult[1]}|Hit\n"
+				output = "Hit"
 				hit += 1
-				
+			
+			if int(memBin, 2) % 4 != 0:
+				output = "Misaligned"
+			
+			hitOrMiss += f"{address}|{dcResult[0]}|{dcResult[1]}|{output}\n"
+			
 			#print(json.dumps(DC.cache_list, sort_keys=True, indent=4))
 			total += 1
 	else:
@@ -246,9 +255,10 @@ def main():
 		way_size = args.setAssociativeWays
 		way_bits = math.ceil(math.log2(way_size))
 		SAC.__init__(cache_size, block_size, way_size)
-
+		
 		# Start
 		for address in memoryAddress:
+			
 			memBin = hexToBin(address)
 			splitSAC = parseSAC(memBin, cache_bits * -1, block_bits * -1)
 			#print(splitSAC)
@@ -257,15 +267,28 @@ def main():
 			wordIndex = int(splitSAC[2], 2)
 			byteoffset = int(splitSAC[3], 2)
 			
+			output = ""
+			
 			print(SAC.find_address(tagBits, setNumber))
 			print(splitSAC)
 			if not SAC.find_address(tagBits, setNumber):
+				output = "Miss"
 				SAC.write_address(tagBits, setNumber)
+			else:
+				output = "Hit"
+				hit += 1
+			total += 1
+			
+			if int(memBin, 2) % 4 != 0:
+				output = "Misaligned"
+			
+			hitOrMiss += f"{address}|{splitSAC[0]}|{splitSAC[1]}|{output}\n"
+			
+		if total == 0:
+			total = 1
 		
 		#print(json.dumps(SAC.DC_list, sort_keys=True, indent=4))
 		
-		hit = 1
-		total = 1
 	write_result(f"{hitOrMiss}\nHit Rate: {(hit / total) * 100}")
 
 def write_result(output):
