@@ -110,15 +110,15 @@ DC = DirectCache()
 SAC = SetAssociativeCache()
 
 def parseDC(memBin, block_size, cache_size):
-	print("---")
-	print(memBin)
-	print(cache_size)
-	print(block_size)
-	print("---")
+	# print("---")
+	# print(memBin)
+	# print(cache_size)
+	# print(block_size)
+	# print("---")
 	# Byte Offset
 	byteOffset = memBin[-2:]
 	memBin = memBin[:-2]
-	print("Byte Offset: ", byteOffset)
+	# print("Byte Offset: ", byteOffset)
 	
 	# Word Offset
 	if block_size == 0:
@@ -127,7 +127,7 @@ def parseDC(memBin, block_size, cache_size):
 	else:
 		wordOffset = memBin[block_size:]
 		memBin = memBin[:block_size]
-	print("Word Offset: ", wordOffset)
+	# print("Word Offset: ", wordOffset)
 	
 	# Index Bits
 	if cache_size == 0:
@@ -136,7 +136,7 @@ def parseDC(memBin, block_size, cache_size):
 	else:
 		indexBits = memBin[cache_size:]
 		memBin = memBin[:cache_size]
-	print("Index Size: ", indexBits)
+	# print("Index Size: ", indexBits)
 	
 	# Rest of bits
 	if memBin == '':
@@ -144,7 +144,7 @@ def parseDC(memBin, block_size, cache_size):
 	else:
 		tagBits = memBin
 	
-	print("Tag: ", memBin)
+	# print("Tag: ", memBin)
 	
 	return (tagBits, indexBits, wordOffset, byteOffset)
 
@@ -192,7 +192,7 @@ def main():
 	else:
 		block_bits = math.ceil(math.log2(block_size // 4))
 	cache_bits = math.ceil(math.log2(cache_size))
-	print(f"Cache Lines: {cache_bits}\nBits per block: {block_bits}")
+	# print(f"Cache Lines: {cache_bits}\nBits per block: {block_bits}")
 	
 	# Initialize Caching Types
 	DC.__init__(cache_size, block_size)
@@ -213,9 +213,6 @@ def main():
 	
 	# Direct Caching
 	if isDirectCaching:
-		if args.setAssociativeWays != None:
-			print("Additional Parameter: set_ways was set for direct cache mapping")
-			return
 		for address in memoryAddress:
 			
 			memBin = hexToBin(address)
