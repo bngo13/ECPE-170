@@ -134,6 +134,7 @@ def parseDC(memBin, block_size, cache_size):
 		indexBits = '0'
 		memBin = memBin[:-1]
 	else:
+		#print(cache_size)
 		indexBits = memBin[cache_size:]
 		memBin = memBin[:cache_size]
 	# print("Index Size: ", indexBits)
@@ -191,7 +192,7 @@ def main():
 		block_bits = 0
 	else:
 		block_bits = math.ceil(math.log2(block_size // 4))
-	cache_bits = math.ceil(math.log2(cache_size))
+	cache_bits = math.ceil(math.log2(cache_size  // block_size))
 	# print(f"Cache Lines: {cache_bits}\nBits per block: {block_bits}")
 	
 	# Initialize Caching Types
@@ -202,9 +203,9 @@ def main():
 	memFileContents = memFile.read().strip()
 	memoryAddress = memFileContents.split("\n")
 	
-	# # Convert mem address to hex if int
-	# for i in range(0, len(memoryAddress)):
-	# 	memoryAddress[i] = hex(int(memoryAddress[i]))
+	# Convert mem address to hex if int
+	for i in range(0, len(memoryAddress)):
+		memoryAddress[i] = hex(int(memoryAddress[i]))
 	
 	# Calculating Hit Rates
 	total = 0
@@ -226,7 +227,7 @@ def main():
 			byteOffset = int(dcResult[3], 2)
 			
 			output = ""
-			
+			print(dcResult)
 			# Check for alignment
 			#print(json.dumps(DC.cache_list, sort_keys=True, indent=4))
 			
@@ -239,6 +240,7 @@ def main():
 			
 			if int(memBin, 2) % 4 != 0:
 				output = "Misaligned"
+				hit -= 1
 			
 			hitOrMiss += f"{address}|{dcResult[0]}|{dcResult[1]}|{output}\n"
 			
@@ -257,7 +259,7 @@ def main():
 		for address in memoryAddress:
 			
 			memBin = hexToBin(address)
-			splitSAC = parseSAC(memBin, cache_bits * -1, block_bits * -1)
+			splitSAC = parseSAC(memBin, (cache_bits // block_bits) * -1, block_bits * -1)
 			#print(splitSAC)
 			tagBits = int(splitSAC[0], 2)
 			setNumber = int(splitSAC[1], 2)
@@ -278,6 +280,7 @@ def main():
 			
 			if int(memBin, 2) % 4 != 0:
 				output = "Misaligned"
+				hit -= 1
 			
 			hitOrMiss += f"{address}|{splitSAC[0]}|{splitSAC[1]}|{output}\n"
 			
